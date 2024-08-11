@@ -1,71 +1,63 @@
-import os
-import torch
-from diffusers import FluxPipeline
 import runpod
+import torch
+import os
+from diffusers import FluxPipeline
 from runpod.serverless.utils import rp_upload, rp_cleanup
 from runpod.serverless.utils.rp_validator import validate
 
-INPUT_SCHEMA = {
-    "prompt": {
-        "type": str,
-        "required": True
-    },
-    "num_inference_steps": {
-        "type": int,
-        "required": False,
-        "default": 4,
-        "min": 1,
-        "max": 50
-    },
-    "seed": {
-        "type": int,
-        "required": False,
-        "default": 42
-    }
-}
+from rp_schemas import INPUT_SCHEMA
 
-def load_model():
-    model_id = "black-forest-labs/FLUX.1-schnell"
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    MODEL = FluxPipeline.from_pretrained(model_id, torch_dtype=torch.float16 if device == "cuda" else torch.float32)
-    MODEL = MODEL.to(device)
-    return MODEL
+# Load Flux pipeline
+pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16)
+pipe.enable_model_cpu_offload()
 
-MODEL = load_model()
+def _setup_generator(seed):
+    generator = torch.Generator(device="cuda")
+    if seed != -1:
+        generator.manual_seed(seed)
+    return generator
 
-def run(job):
-    job_input = job['input']
-    
+def _save_and_upload_images(images, job_id):
+    os.makedirs(f"/{job_id}", exist_ok=True)
+    image_urls = []
+    for index, image in enumerate(images):
+        image_path = os.path.join(f"/{job_id}", f"{index}.png")
+        image.save(image_path)
+
+        image_url = rp_upload.upload_image(job_id, image_path)
+        image_urls.append(image_url)
+    rp_cleanup.clean([f"/{job_id}"])
+    return image_urls
+
+def generate_image(job):
+    '''
+    Generate an image from text using Flux
+    '''
+    job_input = job["input"]
+
     # Input validation
     validated_input = validate(job_input, INPUT_SCHEMA)
+
     if 'errors' in validated_input:
         return {"error": validated_input['errors']}
     validated_input = validated_input['validated_input']
-    
-    # Set seed
-    if validated_input['seed'] is None:
-        validated_input['seed'] = int.from_bytes(os.urandom(2), "big")
-    
+
+    generator = _setup_generator(validated_input['seed'])
+
     # Generate image
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    generator = torch.Generator(device).manual_seed(validated_input['seed'])
-    image = MODEL(
-        validated_input["prompt"],
-        output_type="pil",
-        num_inference_steps=validated_input["num_inference_steps"],
-        generator=generator
-    ).images[0]
-    
-    # Save and upload image
-    temp_file = f"/tmp/{job['id']}_output.png"
-    image.save(temp_file)
-    image_url = rp_upload.upload_image(job['id'], temp_file)
-    
-    os.remove(temp_file)
-    
-    return {
-        "image_url": image_url,
-        "seed": validated_input['seed']
-    }
-    
-runpod.serverless.start({"handler": run, "startup_timeout": 300})
+    output = pipe(
+        prompt=validated_input['prompt'],
+        guidance_scale=validated_input['guidance_scale'],
+        height=validated_input['height'],
+        width=validated_input['width'],
+        num_inference_steps=validated_input['num_inference_steps'],
+        generator=generator,
+        num_images_per_prompt=validated_input['num_images'],
+    ).images
+        
+    image_urls = _save_and_upload_images(output, job['id'])
+
+    return {"image_url": image_urls[0]} if len(image_urls) == 1 else {"images": image_urls}
+
+
+runpod.serverless.start({"handler": generate_image})
