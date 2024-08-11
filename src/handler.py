@@ -1,8 +1,9 @@
 import os
 import torch
+import base64
+from io import BytesIO
 from diffusers import FluxPipeline
 import runpod
-from runpod.serverless.utils import rp_upload, rp_cleanup
 from runpod.serverless.utils.rp_validator import validate
 
 INPUT_SCHEMA = {
@@ -54,16 +55,14 @@ def run(job):
         generator=generator
     ).images[0]
     
-    # Save and upload image
-    temp_file = f"/tmp/{job['id']}_output.png"
-    image.save(temp_file)
-    image_url = rp_upload.upload_image(job['id'], temp_file)
-    
-    os.remove(temp_file)
+    # Convert image to base64
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
     
     return {
-        "image_url": image_url,
+        "image_base64": img_str,
         "seed": validated_input['seed']
     }
-    
+
 runpod.serverless.start({"handler": run, "startup_timeout": 300})
