@@ -1,6 +1,8 @@
 import runpod
 import torch
 import os
+import shutil
+import base64
 from diffusers import FluxPipeline
 from runpod.serverless.utils import rp_upload, rp_cleanup
 from runpod.serverless.utils.rp_validator import validate
@@ -17,17 +19,23 @@ def _setup_generator(seed):
         generator.manual_seed(seed)
     return generator
 
-def _save_and_upload_images(images, job_id):
+def save_and_encode_images(images, job_id):
     os.makedirs(f"/{job_id}", exist_ok=True)
-    image_urls = []
+    image_base64_list = []
     for index, image in enumerate(images):
         image_path = os.path.join(f"/{job_id}", f"{index}.png")
         image.save(image_path)
-
-        image_url = rp_upload.upload_image(job_id, image_path)
-        image_urls.append(image_url)
-    rp_cleanup.clean([f"/{job_id}"])
-    return image_urls
+        
+        # Read the image file and encode it to base64
+        with open(image_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+        
+        image_base64_list.append(encoded_string)
+    
+    # Clean up the temporary directory
+    shutil.rmtree(f"/{job_id}")
+    
+    return image_base64_list
 
 def generate_image(job):
     '''
@@ -55,7 +63,7 @@ def generate_image(job):
         num_images_per_prompt=validated_input['num_images'],
     ).images
         
-    image_urls = _save_and_upload_images(output, job['id'])
+    image_urls = save_and_encode_images(output, job['id'])
 
     return {"image_url": image_urls[0]} if len(image_urls) == 1 else {"images": image_urls}
 
