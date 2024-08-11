@@ -23,6 +23,10 @@ RUN python3.11 -m pip install --upgrade pip && \
 # NOTE: The base image comes with multiple Python versions pre-installed.
 #       It is reccommended to specify the version of Python when running your code.
 
+# Fetch model
+COPY builder/cache_models.py /cache_models.py
+RUN python /cache_models.py
+RUN rm /cache_models.py
 
 # Add src files (Worker Template)
 ADD src .
