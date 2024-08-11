@@ -1,1 +1,1 @@
-docker build -t 0x0elliot/flux-runpod .
+docker build -t ghcr.io/0x0elliot/flux-runpod:main .
