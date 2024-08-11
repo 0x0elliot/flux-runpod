@@ -8,7 +8,7 @@ from runpod.serverless.utils.rp_validator import validate
 from rp_schemas import INPUT_SCHEMA
 
 # Load Flux pipeline
-pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16)
+pipe = FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16)
 pipe.enable_model_cpu_offload()
 
 def _setup_generator(seed):
