@@ -6,3 +6,8 @@
 # To learn more, see https://pip.pypa.io/en/stable/reference/requirements-file-format/
 
 runpod==1.6.2
+
+torch==2.2.0
+transformers==4.30.2
+# runpod==0.9.10
+diffusers
