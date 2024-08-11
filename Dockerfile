@@ -25,7 +25,7 @@ RUN python3.11 -m pip install --upgrade pip && \
 
 # Fetch model
 COPY builder/cache_models.py /cache_models.py
-RUN python /cache_models.py
+RUN python3.11 /cache_models.py
 RUN rm /cache_models.py
 
 # Add src files (Worker Template)
