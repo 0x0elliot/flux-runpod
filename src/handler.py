@@ -59,9 +59,6 @@ def run(job):
     image.save(temp_file)
     image_url = rp_upload.upload_image(job['id'], temp_file)
     
-    # Cleanup
-    # rp_cleanup.clean(['/tmp'])
-    # only clean up the temp file
     os.remove(temp_file)
     
     return {
@@ -69,4 +66,4 @@ def run(job):
         "seed": validated_input['seed']
     }
     
-runpod.serverless.start({"handler": run, "startup_timeout": 300, "init": init})
+runpod.serverless.start({"handler": run, "startup_timeout": 300})
