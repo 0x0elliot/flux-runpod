@@ -1,9 +1,8 @@
 import os
 import torch
-import base64
-from io import BytesIO
 from diffusers import FluxPipeline
 import runpod
+from runpod.serverless.utils import rp_upload, rp_cleanup
 from runpod.serverless.utils.rp_validator import validate
 
 INPUT_SCHEMA = {
@@ -27,8 +26,9 @@ INPUT_SCHEMA = {
 
 def load_model():
     model_id = "black-forest-labs/FLUX.1-schnell"
-    MODEL = FluxPipeline.from_pretrained(model_id, torch_dtype=torch.bfloat16)
-    MODEL.enable_model_cpu_offload()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    MODEL = FluxPipeline.from_pretrained(model_id, torch_dtype=torch.float16 if device == "cuda" else torch.float32)
+    MODEL = MODEL.to(device)
     return MODEL
 
 MODEL = load_model()
@@ -47,7 +47,8 @@ def run(job):
         validated_input['seed'] = int.from_bytes(os.urandom(2), "big")
     
     # Generate image
-    generator = torch.Generator("cpu").manual_seed(validated_input['seed'])
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    generator = torch.Generator(device).manual_seed(validated_input['seed'])
     image = MODEL(
         validated_input["prompt"],
         output_type="pil",
@@ -55,14 +56,16 @@ def run(job):
         generator=generator
     ).images[0]
     
-    # Convert image to base64
-    buffered = BytesIO()
-    image.save(buffered, format="PNG")
-    img_str = base64.b64encode(buffered.getvalue()).decode()
+    # Save and upload image
+    temp_file = f"/tmp/{job['id']}_output.png"
+    image.save(temp_file)
+    image_url = rp_upload.upload_image(job['id'], temp_file)
+    
+    os.remove(temp_file)
     
     return {
-        "image_base64": img_str,
+        "image_url": image_url,
         "seed": validated_input['seed']
     }
-
+    
 runpod.serverless.start({"handler": run, "startup_timeout": 300})
