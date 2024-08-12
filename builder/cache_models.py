@@ -1,14 +1,15 @@
 import torch
 from diffusers import FluxPipeline
 
-def fetch_pretrained_model(model_class, model_name, **kwargs):
+def fetch_pretrained_model():
     '''
     Fetches a pretrained model from the HuggingFace model hub.
     '''
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            return model_class.from_pretrained(model_name, **kwargs)
+            # return model_class.from_pretrained(model_name, **kwargs)
+            return FluxPipeline.from_pretrained("black-forest-labs/FLUX.1-schnell", torch_dtype=torch.bfloat16)
         except OSError as err:
             if attempt < max_retries - 1:
                 print(f"Error encountered: {err}. Retrying attempt {attempt + 1} of {max_retries}...")

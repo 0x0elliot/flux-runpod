@@ -9,7 +9,7 @@ runpod==1.6.2
 
 torch==2.2.0
 accelerate
-transformers==4.30.2
+transformers
 hf_transfer
 # runpod==0.9.10
 diffusers
