@@ -1,1 +1,1 @@
-docker build -t ghcr.io/0x0elliot/flux-runpod:main .
+DOCKER_TMPDIR=/tmp/lol docker build --memory=6g --memory-swap=6g -t ghcr.io/0x0elliot/flux-runpod:main .
