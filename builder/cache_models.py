@@ -24,7 +24,7 @@ def cache_flux_model():
     print(f"Caching {model_name}...")
     
     # Cache the FLUX pipeline
-    pipe = fetch_pretrained_model(FluxPipeline, model_name, torch_dtype=torch.bfloat16)
+    pipe = fetch_pretrained_model()
     pipe.enable_model_cpu_offload()
     print("FLUX pipeline cached and CPU offload enabled")
     
